@@ -12,6 +12,9 @@ import AVFoundation
 class ViewTwoVC: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
 
     @IBOutlet weak var cameraView: UIView!
+    @IBOutlet weak var tempImageView: UIImageView!
+    
+    var didTakePhoto = Bool()
     
     var captureSession: AVCaptureSession?
     var stillImageOutput: AVCaptureStillImageOutput?
@@ -21,6 +24,57 @@ class ViewTwoVC: UIViewController, UIImagePickerControllerDelegate, UINavigation
         super.viewDidLoad()
 
         // Do any additional setup after loading the view.
+    }
+    
+    func didPressTakePhoto() {
+        
+        if let videoConnection = stillImageOutput?.connection(with: AVMediaType.video) {
+            videoConnection.videoOrientation = AVCaptureVideoOrientation.portrait
+            stillImageOutput?.captureStillImageAsynchronously(from: videoConnection, completionHandler: { (sampleBuffer, error) in
+                if error != nil {
+                    return
+                }
+                
+                if sampleBuffer != nil {
+                    
+                    var imageData = AVCaptureStillImageOutput.jpegStillImageNSDataRepresentation(sampleBuffer!)
+                    var dataProvider = CGDataProvider(data: imageData as! CFData)
+                    var cgImageRef = CGImage(jpegDataProviderSource: dataProvider!, decode: nil, shouldInterpolate: true, intent: CGColorRenderingIntent.defaultIntent)
+                    
+                    var image = UIImage(cgImage: cgImageRef!, scale: 1.0, orientation: UIImageOrientation.right)
+                    DispatchQueue.main.async {
+                        self.tempImageView.image = image
+                        self.tempImageView.isHidden = false
+                        self.cameraView.isHidden = true
+                    }
+                    print("in didPressTakePhoto")
+                    
+                }
+                
+            })
+        }
+    }
+    
+    func didPressTakeAnother() {
+        
+        if didTakePhoto == true {
+            tempImageView.isHidden = true
+            cameraView.isHidden = false
+            didTakePhoto = false
+            print("in didPressTakeAnother :::::: TRUE")
+        } else {
+            captureSession?.startRunning()
+            cameraView.isHidden = false
+            didTakePhoto = true
+            print("in didPressTakeAnother :::::: FALSE")
+            didPressTakePhoto()
+        }
+        
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        print("in touchesBegan")
+        didPressTakeAnother()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -48,7 +102,7 @@ class ViewTwoVC: UIViewController, UIImagePickerControllerDelegate, UINavigation
                 captureSession?.addOutput(stillImageOutput!)
                 
                 previewLayer = AVCaptureVideoPreviewLayer(session: captureSession!)
-                previewLayer?.videoGravity = AVLayerVideoGravity.resizeAspect
+                previewLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
                 previewLayer?.connection?.videoOrientation = AVCaptureVideoOrientation.portrait
                 cameraView.layer.addSublayer(previewLayer!)
                 
